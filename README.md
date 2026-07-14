@@ -1,2 +1,2 @@
 # Madep-Kiblat
-Mengarahkan lokasi presisi ke Ka'bah
+Madep Kiblat adalah sebuah aplikasi web interaktif satu halaman (single-page web application) berbasis Ilmu Falak yang digunakan untuk menghitung dan memvisualisasikan arah kiblat dari koordinat mana pun di bumi secara presisi. ​Aplikasi ini menggabungkan formulasi trigonometri bola (Spherical Trigonometry) tradisional dengan kalkulasi geodesik modern berdasarkan model elipsoid bumi WGS84.
