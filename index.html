@@ -1,0 +1,664 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madep Kiblat</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- KaTeX CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        body { 
+            font-family: 'Inter', 'Segoe UI', sans-serif; 
+            background-color: #0f172a; 
+            color: #f8fafc; 
+            overflow-x: hidden;
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        #map { height: 400px; width: 100%; border-radius: 1.5rem; z-index: 1; filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(85%); }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        input {
+            background: rgba(0, 0, 0, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }
+        input::placeholder { color: rgba(255, 255, 255, 0.3) !important; }
+        input:focus { border-color: #34d399 !important; box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2) !important; outline: none; }
+
+        /* Compass Styling */
+        .compass-container { 
+            width: 240px; height: 240px; border-radius: 50%; 
+            border: 2px solid rgba(255,255,255,0.2); 
+            position: relative; 
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 100%); 
+            backdrop-filter: blur(10px);
+            box-shadow: inset 0 0 30px rgba(255,255,255,0.05), 0 15px 35px rgba(0,0,0,0.4);
+        }
+        .compass-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; background-color: #34d399; border-radius: 50%; z-index: 10; box-shadow: 0 0 15px #34d399; }
+        .compass-rose { position: absolute; width: 100%; height: 100%; }
+        .compass-mark { position: absolute; font-weight: 700; font-size: 1rem; color: rgba(255,255,255,0.7); letter-spacing: 1px; z-index: 2; }
+        .mark-n { top: 12px; left: 50%; transform: translateX(-50%); color: #34d399; font-size: 1.2rem; }
+        .mark-s { bottom: 12px; left: 50%; transform: translateX(-50%); }
+        .mark-e { right: 15px; top: 50%; transform: translateY(-50%); }
+        .mark-w { left: 15px; top: 50%; transform: translateY(-50%); }
+        
+        .qibla-pointer { 
+            position: absolute; top: 12%; left: 50%; width: 4px; height: 38%; 
+            background: linear-gradient(to top, transparent 0%, #34d399 50%, #10b981 100%); 
+            transform-origin: bottom center; transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 5; 
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(52, 211, 153, 0.6);
+        }
+        .qibla-icon { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); color: #34d399; font-size: 22px; filter: drop-shadow(0 0 8px rgba(52,211,153,0.8)); }
+        
+        .blob { position: fixed; filter: blur(120px); z-index: -1; opacity: 0.5; animation: float 12s infinite ease-in-out alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #3730a3; border-radius: 50%; }
+        .blob-2 { bottom: -10%; right: -10%; width: 45vw; height: 45vw; background: #065f46; border-radius: 50%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 40px) scale(1.1); } }
+        
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding-bottom: 5px; margin: 0.5em 0; }
+        
+        /* PENGATURAN KHUSUS CETAK (PRINT) */
+        @media print {
+            body { background: white; color: black; min-height: auto; font-family: serif; }
+            .no-print, .blob, nav, #map-container, #input-panel { display: none !important; }
+            
+            #result-panel, #step-by-step-section { 
+                display: block !important; 
+                background: white !important; 
+                backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 10px 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                page-break-inside: avoid;
+            }
+            .glass-card { background: white !important; border: 1px solid #ccc !important; box-shadow: none !important; }
+            * { color: black !important; border-color: #ddd !important; }
+            
+            .compass-container { background: white !important; border: 2px solid black !important; box-shadow: none !important; }
+            .compass-mark { color: black !important; }
+            .qibla-pointer { background: black !important; box-shadow: none !important; border: 1px solid black !important; }
+            .qibla-icon { color: black !important; filter: none !important; }
+
+            #arc-labels div {
+                background: white !important;
+                color: black !important;
+                border: 1px solid black !important;
+                box-shadow: none !important;
+            }
+
+            .bg-white\/5, .bg-black\/20, .bg-emerald-500\/10 { background: #f9f9f9 !important; border: 1px solid #ccc !important; }
+            .katex { font-size: 1.1em !important; }
+            .print-header { display: block !important; text-align: center; margin-bottom: 20px; font-weight: bold; border-bottom: 2px solid black; padding-bottom: 10px; }
+            @page { margin: 1.5cm; }
+        }
+        .print-header { display: none; }
+
+        /* Loader Animation */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #34d399;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="pb-20 relative antialiased selection:bg-emerald-500/30">
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <nav class="glass-card sticky top-0 z-50 border-b border-white/10 no-print">
+        <div class="container mx-auto p-4 flex items-center justify-between">
+            <div class="font-extrabold text-xl tracking-wide flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                    <i class="fa-solid fa-kaaba text-white text-sm"></i>
+                </div>
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">Madep Kiblat</span>
+            </div>
+            <div class="text-xs text-gray-400 border border-gray-600 px-3 py-1 rounded-full hidden sm:block">
+                <i class="fa-solid fa-laptop-code text-emerald-400 mr-1"></i> Dev: Surya Qalandar
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 my-6 relative z-10">
+        
+        <div class="print-header">
+            <h2 class="text-2xl uppercase">Lembar Dokumentasi Arah Kiblat</h2>
+            <p>Dihitung menggunakan metode Ilmu Falak (Spherical Trigonometry) & WGS84</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <div id="input-panel" class="glass-card p-6 md:p-8 rounded-[2rem] no-print">
+                <h2 class="font-bold text-lg mb-6 flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-location-dot text-emerald-400"></i> Koordinat Lokasi
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Latitude (Lintang)</label>
+                        <input type="text" inputmode="decimal" id="lat-input" placeholder="Contoh: -8.025197" class="w-full p-4 rounded-2xl transition-all font-mono text-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Longitude (Bujur)</label>
+                        <input type="text" inputmode="decimal" id="lon-input" placeholder="Contoh: 111.703036" class="w-full p-4 rounded-2xl transition-all font-mono text-lg">
+                    </div>
+
+                    <div id="status-message" class="text-sm font-medium hidden rounded-lg p-3 text-center transition-all duration-300"></div>
+                    
+                    <button onclick="calculateManual()" class="w-full mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white py-4 rounded-2xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.25)] transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-lg">
+                        <i class="fa-solid fa-calculator"></i> Hitung
+                    </button>
+                </div>
+                
+                <p class="text-xs text-gray-400 mt-6 text-center">
+                    Gunakan tanda minus (-) untuk Lintang Selatan dan Bujur Barat.
+                </p>
+            </div>
+
+            <!-- PANEL HASIL & KOMPAS VISUAL BUSUR -->
+            <div id="result-panel" class="glass-card p-6 md:p-8 rounded-[2rem] flex flex-col justify-start items-center text-center">
+                <div class="mb-2 w-full">
+                    <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Azimut Kiblat Utama</h2>
+                    <div class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-300 drop-shadow-md mb-2" id="res-azimuth">0.00°</div>
+                </div>
+
+                <!-- WADAH KOMPAS & GARIS BUSUR LUAR -->
+                <div class="relative flex justify-center items-center w-full h-[380px]">
+                    
+                    <!-- Lapis Belakang: Garis Panah SVG -->
+                    <svg id="arcs-svg" class="absolute w-[380px] h-[380px] pointer-events-none" style="z-index: 1;">
+                        <defs>
+                            <marker id="arrow-utsb" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                                <path d="M 0 0 L 6 3 L 0 6 z" fill="#3b82f6" />
+                            </marker>
+                            <marker id="arrow-ub" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                                <path d="M 0 0 L 6 3 L 0 6 z" fill="#10b981" />
+                            </marker>
+                            <marker id="arrow-bu" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                                <path d="M 0 0 L 6 3 L 0 6 z" fill="#f59e0b" />
+                            </marker>
+                        </defs>
+                        <!-- Grup Garis yang diinjeksi via JS -->
+                        <g id="arcs-group"></g>
+                    </svg>
+
+                    <!-- Lapis Tengah: Kompas Utama -->
+                    <div class="compass-container absolute" id="compass-ui" style="z-index: 10;">
+                        <div class="compass-rose">
+                            <span class="compass-mark mark-n">U</span>
+                            <span class="compass-mark mark-e">T</span>
+                            <span class="compass-mark mark-s">S</span>
+                            <span class="compass-mark mark-w">B</span>
+                        </div>
+                        <div class="compass-center"></div>
+                        <div class="qibla-pointer" id="qibla-needle">
+                            <div class="qibla-icon"><i class="fa-solid fa-kaaba"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Lapis Depan (Teratas): Label Teks HTML Box -->
+                    <div id="arc-labels" class="absolute inset-0 pointer-events-none" style="z-index: 20;">
+                        <!-- Label akan di-inject ke sini oleh JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PANEL EDUKASI: PENJABARAN RUMUS -->
+        <div id="step-by-step-section" class="glass-card mt-6 p-6 md:p-8 rounded-[2rem] hidden">
+            
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-white/10 pb-4 no-print gap-4">
+                <h2 class="font-bold text-xl flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-file-contract text-emerald-400"></i> Penjabaran Hisab Falak
+                </h2>
+            </div>
+            
+            <div id="step-by-step-content" class="text-sm md:text-base text-gray-200">
+                <!-- Konten digenerate oleh JavaScript -->
+            </div>
+        </div>
+
+        <div id="map-container" class="glass-card mt-6 p-4 md:p-5 rounded-[2rem] no-print">
+            <h2 class="font-bold text-lg mb-4 flex items-center gap-2 text-white">
+                <i class="fa-solid fa-map text-emerald-400"></i> Peta Garis Geodesik WGS84
+            </h2>
+            <div id="map"></div>
+        </div>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/geographiclib/1.52.2/geographiclib.min.js"></script>
+
+    <script>
+        const KAABA_LAT = 21.422487;
+        const KAABA_LON = 39.826206;
+        let map, userMarker, kaabaMarker, geodesicPolyline;
+
+        // Inisialisasi Peta Leaflet
+        function initMap() {
+            try {
+                map = L.map('map').setView([-7.5, 111.0], 5);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+                }).addTo(map);
+
+                const kaabaIcon = L.divIcon({
+                    html: '<div style="color: #10b981; font-size: 24px; text-shadow: 0 0 10px rgba(0,0,0,0.8);"><i class="fa-solid fa-kaaba"></i></div>',
+                    className: 'custom-div-icon', iconSize: [24, 24], iconAnchor: [12, 12]
+                });
+                kaabaMarker = L.marker([KAABA_LAT, KAABA_LON], {icon: kaabaIcon}).addTo(map);
+            } catch(e) {
+                console.warn("Leaflet map initialization failed: ", e);
+            }
+        }
+
+        // --- SISTEM PENGGAMBARAN BUSUR & TEKS HTML (HUD LUAR) ---
+
+        function polarToCartesian(cx, cy, r, angleInDegrees) {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: cx + (r * Math.cos(angleInRadians)),
+                y: cy + (r * Math.sin(angleInRadians))
+            };
+        }
+
+        function describeArc(x, y, radius, startAngle, endAngle, clockwise) {
+            const start = polarToCartesian(x, y, radius, startAngle);
+            const end = polarToCartesian(x, y, radius, endAngle);
+            const sweepFlag = clockwise ? "1" : "0";
+            let largeArcFlag = "0";
+            
+            if (clockwise) {
+                largeArcFlag = (endAngle - startAngle + 360) % 360 > 180 ? "1" : "0";
+            } else {
+                largeArcFlag = (startAngle - endAngle + 360) % 360 > 180 ? "1" : "0";
+            }
+            return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${end.x} ${end.y}`;
+        }
+
+        function drawOuterArcs(az) {
+            const group = document.getElementById('arcs-group');
+            const labelsContainer = document.getElementById('arc-labels');
+            
+            const cx = 190, cy = 190;
+            const rUTSB = 135; // Cincin Biru
+            const r1 = 155;    // Cincin Hijau
+            const r2 = 175;    // Cincin Oranye
+
+            let svgHtml = '';
+            let labelsHtml = '';
+
+            const createLabel = (text, r, angle, textColor, borderColor) => {
+                const rad = (angle - 90) * Math.PI / 180;
+                const dx = r * Math.cos(rad);
+                const dy = r * Math.sin(rad);
+                const style = `left: calc(50% + ${dx}px); top: calc(50% + ${dy}px); transform: translate(-50%, -50%);`;
+                return `<div class="absolute bg-slate-900 border ${borderColor} ${textColor} text-[10px] font-mono font-bold px-2 py-0.5 rounded-md shadow-md whitespace-nowrap" style="${style}">${text}</div>`;
+            };
+
+            // Busur UTSB (Azimut 360)
+            if (az > 0.5) {
+                svgHtml += `<path d="${describeArc(cx, cy, rUTSB, 0, az, true)}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-utsb)" />`;
+                labelsHtml += createLabel(`UTSB ${az.toFixed(1)}°`, rUTSB, az / 2, 'text-blue-400', 'border-blue-500/50');
+            }
+
+            // Busur Detail (Tergantung Kuadran)
+            if (az >= 270 && az <= 360) {
+                let a1 = 360 - az; // U-B
+                let a2 = az - 270; // B-U
+                
+                svgHtml += `<path d="${describeArc(cx, cy, r1, 360, az, false)}" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-ub)" />`;
+                svgHtml += `<path d="${describeArc(cx, cy, r2, 270, az, true)}" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-bu)" />`;
+                
+                labelsHtml += createLabel(`U-B ${a1.toFixed(1)}°`, r1 + (a1 < 30 ? 16 : 0), 360 - (a1 / 2), 'text-emerald-400', 'border-emerald-500/50');
+                labelsHtml += createLabel(`B-U ${a2.toFixed(1)}°`, r2 + (a2 < 30 ? 16 : 0), 270 + (a2 / 2), 'text-amber-400', 'border-amber-500/50');
+            
+            } else if (az >= 0 && az < 90) {
+                let a1 = az; // U-T
+                let a2 = 90 - az; // T-U
+                
+                svgHtml += `<path d="${describeArc(cx, cy, r1, 0, az, true)}" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-ub)" />`;
+                svgHtml += `<path d="${describeArc(cx, cy, r2, 90, az, false)}" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-bu)" />`;
+                
+                labelsHtml += createLabel(`U-T ${a1.toFixed(1)}°`, r1 + (a1 < 30 ? 16 : 0), a1 / 2, 'text-emerald-400', 'border-emerald-500/50');
+                labelsHtml += createLabel(`T-U ${a2.toFixed(1)}°`, r2 + (a2 < 30 ? 16 : 0), 90 - (a2 / 2), 'text-amber-400', 'border-amber-500/50');
+            
+            } else if (az >= 90 && az < 180) {
+                let a1 = az - 90; // T-S
+                let a2 = 180 - az; // S-T
+                
+                svgHtml += `<path d="${describeArc(cx, cy, r1, 90, az, true)}" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-ub)" />`;
+                svgHtml += `<path d="${describeArc(cx, cy, r2, 180, az, false)}" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-bu)" />`;
+                
+                labelsHtml += createLabel(`T-S ${a1.toFixed(1)}°`, r1 + (a1 < 30 ? 16 : 0), 90 + (a1 / 2), 'text-emerald-400', 'border-emerald-500/50');
+                labelsHtml += createLabel(`S-T ${a2.toFixed(1)}°`, r2 + (a2 < 30 ? 16 : 0), 180 - (a2 / 2), 'text-amber-400', 'border-amber-500/50');
+            
+            } else if (az >= 180 && az < 270) {
+                let a1 = az - 180; // S-B
+                let a2 = 270 - az; // B-S
+                
+                svgHtml += `<path d="${describeArc(cx, cy, r1, 180, az, true)}" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-ub)" />`;
+                svgHtml += `<path d="${describeArc(cx, cy, r2, 270, az, false)}" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-bu)" />`;
+                
+                labelsHtml += createLabel(`S-B ${a1.toFixed(1)}°`, r1 + (a1 < 30 ? 16 : 0), 180 + (a1 / 2), 'text-emerald-400', 'border-emerald-500/50');
+                labelsHtml += createLabel(`B-S ${a2.toFixed(1)}°`, r2 + (a2 < 30 ? 16 : 0), 270 - (a2 / 2), 'text-amber-400', 'border-amber-500/50');
+            }
+
+            group.innerHTML = svgHtml;
+            labelsContainer.innerHTML = labelsHtml;
+        }
+
+        // Teks untuk Kesimpulan Kompas
+        function formatArahTexts(azimuth) {
+            let descPrint = "";
+            if (azimuth >= 270 && azimuth <= 360) {
+                let ub = 360 - azimuth;
+                let bu = azimuth - 270;
+                descPrint = `
+                    <div class="mb-2"><span class="font-bold text-lg">U ${ub.toFixed(2)}° B</span> <br><small>(Dari Utara, geser ke Barat sejauh ${ub.toFixed(2)}°)</small></div>
+                    <div><span class="font-bold text-lg">B ${bu.toFixed(2)}° U</span> <br><small>(Dari Barat, geser ke Utara sejauh ${bu.toFixed(2)}°)</small></div>`;
+            } else if (azimuth >= 0 && azimuth < 90) {
+                let ut = azimuth;
+                let tu = 90 - azimuth;
+                descPrint = `
+                    <div class="mb-2"><span class="font-bold text-lg">U ${ut.toFixed(2)}° T</span> <br><small>(Dari Utara, geser ke Timur sejauh ${ut.toFixed(2)}°)</small></div>
+                    <div><span class="font-bold text-lg">T ${tu.toFixed(2)}° U</span> <br><small>(Dari Timur, geser ke Utara sejauh ${tu.toFixed(2)}°)</small></div>`;
+            } else if (azimuth >= 180 && azimuth < 270) {
+                let sb = azimuth - 180;
+                let bs = 270 - azimuth;
+                descPrint = `
+                    <div class="mb-2"><span class="font-bold text-lg">S ${sb.toFixed(2)}° B</span> <br><small>(Dari Selatan, geser ke Barat sejauh ${sb.toFixed(2)}°)</small></div>
+                    <div><span class="font-bold text-lg">B ${bs.toFixed(2)}° S</span> <br><small>(Dari Barat, geser ke Selatan sejauh ${bs.toFixed(2)}°)</small></div>`;
+            } else {
+                let st = 180 - azimuth;
+                let ts = azimuth - 90;
+                descPrint = `
+                    <div class="mb-2"><span class="font-bold text-lg">S ${st.toFixed(2)}° T</span> <br><small>(Dari Selatan, geser ke Timur sejauh ${st.toFixed(2)}°)</small></div>
+                    <div><span class="font-bold text-lg">T ${ts.toFixed(2)}° S</span> <br><small>(Dari Timur, geser ke Selatan sejauh ${ts.toFixed(2)}°)</small></div>`;
+            }
+            return descPrint;
+        }
+
+        // TAMPILAN RUMUS LENGKAP
+        function generateStepByStepMath(lat, lon, azimuthSpherical) {
+            const toRad = x => x * Math.PI / 180;
+            const selisihBujur = KAABA_LON - lon;
+
+            const sDL = Math.sin(toRad(selisihBujur));
+            const cDL = Math.cos(toRad(selisihBujur));
+            const sL1 = Math.sin(toRad(lat));
+            const cL1 = Math.cos(toRad(lat));
+            const sL2 = Math.sin(toRad(KAABA_LAT));
+            const cL2 = Math.cos(toRad(KAABA_LAT));
+
+            const y = sDL * cL2;
+            const x1 = cL1 * sL2;
+            const x2 = sL1 * cL2 * cDL;
+            const x = x1 - x2;
+            
+            const txt = formatArahTexts(azimuthSpherical);
+
+            const html = `
+                <div class="space-y-6">
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/10">
+                        <h3 class="font-bold text-emerald-400 mb-3 text-lg">1. Data Koordinat</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm font-semibold mb-2 text-gray-300">Lokasi Anda (Titik 1):</p>
+                                <ul class="list-disc list-inside text-sm text-gray-400">
+                                    <li>Lintang (\\(\\phi_1\\)) = ${lat.toFixed(6)}°</li>
+                                    <li>Bujur (\\(\\lambda_1\\)) = ${lon.toFixed(6)}°</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold mb-2 text-gray-300">Ka'bah, Makkah (Titik 2):</p>
+                                <ul class="list-disc list-inside text-sm text-gray-400">
+                                    <li>Lintang (\\(\\phi_2\\)) = ${KAABA_LAT.toFixed(6)}°</li>
+                                    <li>Bujur (\\(\\lambda_2\\)) = ${KAABA_LON.toFixed(6)}°</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/10">
+                        <h3 class="font-bold text-emerald-400 mb-2 text-lg">2. Selisih Bujur (\\(\\Delta\\lambda\\))</h3>
+                        <div class="overflow-x-auto text-center md:text-left">
+                            $$ \\Delta\\lambda = \\lambda_2 - \\lambda_1 $$
+                            $$ \\Delta\\lambda = ${KAABA_LON.toFixed(6)}° - (${lon.toFixed(6)}°) = ${selisihBujur.toFixed(6)}° $$
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/10">
+                        <h3 class="font-bold text-emerald-400 mb-2 text-lg">3. Nilai Trigonometri Dasar</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-sm text-center md:text-left">
+                            <div class="bg-black/20 p-3 rounded-lg border border-white/5">\\(\\sin(\\phi_1)\\) = ${sL1.toFixed(6)}<br>\\(\\cos(\\phi_1)\\) = ${cL1.toFixed(6)}</div>
+                            <div class="bg-black/20 p-3 rounded-lg border border-white/5">\\(\\sin(\\phi_2)\\) = ${sL2.toFixed(6)}<br>\\(\\cos(\\phi_2)\\) = ${cL2.toFixed(6)}</div>
+                            <div class="bg-black/20 p-3 rounded-lg border border-white/5">\\(\\sin(\\Delta\\lambda)\\) = ${sDL.toFixed(6)}<br>\\(\\cos(\\Delta\\lambda)\\) = ${cDL.toFixed(6)}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/10">
+                        <h3 class="font-bold text-emerald-400 mb-2 text-lg">4. Menghitung Komponen Arah</h3>
+                        <div class="mb-6">
+                            <p class="font-semibold text-gray-300 text-sm">A. Komponen Y (Pembilang)</p>
+                            <div class="overflow-x-auto">
+                                $$ Y = \\sin(\\Delta\\lambda) \\times \\cos(\\phi_2) $$
+                                $$ Y = ${sDL.toFixed(6)} \\times ${cL2.toFixed(6)} = ${y.toFixed(6)} $$
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-300 text-sm">B. Komponen X (Penyebut)</p>
+                            <div class="overflow-x-auto">
+                                $$ X = (\\cos(\\phi_1) \\times \\sin(\\phi_2)) - (\\sin(\\phi_1) \\times \\cos(\\phi_2) \\times \\cos(\\Delta\\lambda)) $$
+                                $$ X = (${cL1.toFixed(6)} \\times ${sL2.toFixed(6)}) - (${sL1.toFixed(6)} \\times ${cL2.toFixed(6)} \\times ${cDL.toFixed(6)}) $$
+                                $$ X = (${x1.toFixed(6)}) - (${x2.toFixed(6)}) = ${x.toFixed(6)} $$
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-emerald-500/10 to-teal-900/40 p-6 rounded-xl border border-emerald-500/30">
+                        <h3 class="font-bold text-emerald-400 mb-2 text-lg">5. Menentukan Sudut Arah Kiblat</h3>
+                        <div class="overflow-x-auto mb-6 border-b border-white/10 pb-4">
+                            $$ \\text{Arah (A)} = \\text{Atan2}(Y, X) $$
+                            $$ \\text{Arah (A)} = \\text{Atan2}(${y.toFixed(6)}, ${x.toFixed(6)}) $$
+                            $$ \\text{Azimut UTSB} = ${azimuthSpherical.toFixed(6)}° $$
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 items-center">
+                            <div class="text-center md:text-left">
+                                <h4 class="font-bold text-white mb-2 text-sm uppercase tracking-wide opacity-80">Nilai Azimut (UTSB):</h4>
+                                <div class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-300">${azimuthSpherical.toFixed(2)}°</div>
+                            </div>
+                            <div class="bg-black/30 p-4 rounded-xl">
+                                <h4 class="font-bold text-white mb-2 text-sm uppercase tracking-wide opacity-80">Arah pada Kompas:</h4>
+                                <div class="text-emerald-100">${txt}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const contentDiv = document.getElementById('step-by-step-content');
+            contentDiv.innerHTML = html;
+            document.getElementById('step-by-step-section').classList.remove('hidden');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(contentDiv, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true}, 
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function performCalculation(lat, lon) {
+            const toRad = x => x * Math.PI / 180;
+            const y = Math.sin(toRad(KAABA_LON - lon)) * Math.cos(toRad(KAABA_LAT));
+            const x = Math.cos(toRad(lat)) * Math.sin(toRad(KAABA_LAT)) - Math.sin(toRad(lat)) * Math.cos(toRad(KAABA_LAT)) * Math.cos(toRad(KAABA_LON - lon));
+            let azimuthSpherical = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+            let displayAzimuth = azimuthSpherical;
+            let isWGS84 = false;
+            let geodObj = null;
+
+            if (typeof GeographicLib !== 'undefined' && GeographicLib.Geodesic) {
+                try {
+                    geodObj = GeographicLib.Geodesic.WGS84;
+                    const r = geodObj.Inverse(lat, lon, KAABA_LAT, KAABA_LON);
+                    displayAzimuth = (r.azi1 + 360) % 360; 
+                    isWGS84 = true;
+                } catch(e) {
+                    console.warn("GeographicLib error:", e);
+                }
+            }
+
+            // Animasi Angka
+            animateValue("res-azimuth", 0, displayAzimuth, 1000);
+            
+            // Gambar Garis Panah (Busur Derajat) beserta label HTML-nya
+            drawOuterArcs(displayAzimuth);
+            
+            generateStepByStepMath(lat, lon, azimuthSpherical);
+
+            const needle = document.getElementById('qibla-needle');
+            if (needle) {
+                // Pastikan putaran jarum lewat jarak terpendek
+                let currentRot = parseFloat(needle.dataset.rotation || 0);
+                let diff = displayAzimuth - (currentRot % 360);
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                let newRot = currentRot + diff;
+                
+                needle.style.transform = `rotate(${newRot}deg)`;
+                needle.dataset.rotation = newRot;
+            }
+
+            updateMap(lat, lon, geodObj, isWGS84);
+            
+            // Scroll ke hasil
+            setTimeout(() => {
+                document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
+        }
+
+        // Animasi angka agar terkesan hidup
+        function animateValue(id, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = (start + (end - start) * easeOut).toFixed(2);
+                document.getElementById(id).textContent = current + "°";
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function updateMap(lat, lon, geod, isWGS84) {
+            if (!map) return;
+            if (userMarker) map.removeLayer(userMarker);
+            if (geodesicPolyline) map.removeLayer(geodesicPolyline);
+
+            const userIcon = L.divIcon({
+                html: '<div style="color: #3b82f6; font-size: 20px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.8));"><i class="fa-solid fa-street-view"></i></div>',
+                className: 'custom-div-icon', iconSize: [20, 20], iconAnchor: [10, 10]
+            });
+            
+            userMarker = L.marker([lat, lon], {icon: userIcon}).addTo(map);
+
+            const pathPoints = [];
+            if (isWGS84 && geod) {
+                const line = geod.InverseLine(lat, lon, KAABA_LAT, KAABA_LON);
+                const stepCount = 50;
+                for (let i = 0; i <= stepCount; i++) {
+                    const pos = line.Position((i / stepCount) * line.s13);
+                    pathPoints.push([pos.lat2, pos.lon2]);
+                }
+            } else {
+                pathPoints.push([lat, lon]);
+                pathPoints.push([KAABA_LAT, KAABA_LON]);
+            }
+
+            geodesicPolyline = L.polyline(pathPoints, { 
+                color: '#34d399', 
+                weight: 4, 
+                opacity: 0.8, 
+                dashArray: '10, 10' 
+            }).addTo(map);
+
+            const bounds = L.latLngBounds(pathPoints);
+            map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
+        }
+
+        function showMessage(text, isError = false) {
+            const msgEl = document.getElementById('status-message');
+            msgEl.textContent = text;
+            msgEl.className = `text-sm font-medium p-3 text-center transition-all duration-300 rounded-xl mb-2 ${isError ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`;
+            msgEl.classList.remove('hidden');
+            
+            setTimeout(() => {
+                msgEl.classList.add('hidden');
+            }, 5000);
+        }
+
+        function calculateManual() {
+            let latRaw = document.getElementById('lat-input').value.trim().replace(/,/g, '.');
+            let lonRaw = document.getElementById('lon-input').value.trim().replace(/,/g, '.');
+            
+            if(!latRaw || !lonRaw || isNaN(latRaw) || isNaN(lonRaw)) {
+                showMessage("Mohon masukkan angka koordinat yang valid, atau gunakan data contoh.", true);
+                latRaw = "-8.025197";
+                lonRaw = "111.703036";
+                document.getElementById('lat-input').value = latRaw;
+                document.getElementById('lon-input').value = lonRaw;
+            }
+
+            performCalculation(parseFloat(latRaw), parseFloat(lonRaw));
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(initMap, 200);
+        });
+    </script>
+</body>
+</html>
+
+```
